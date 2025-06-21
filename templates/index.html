@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brain Tumor Detection</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #6dd5ed, #2193b0); /* Gradien biru */
+            color: #333;
+            overflow: hidden; /* Mencegah scrollbar yang tidak diinginkan */
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            animation: fadeIn 1s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        h1 {
+            color: #2193b0;
+            margin-bottom: 25px;
+            font-size: 2.2em;
+            font-weight: 600;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .file-input-wrapper input[type="file"] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .file-input-button {
+            border: 2px solid #2193b0;
+            color: #2193b0;
+            background-color: #fff;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .file-input-button:hover {
+            background-color: #2193b0;
+            color: #fff;
+        }
+        .file-input-button svg {
+            fill: currentColor;
+            width: 20px;
+            height: 20px;
+        }
+        input[type="submit"] {
+            background-color: #2193b0;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 15px rgba(33, 147, 176, 0.4);
+        }
+        input[type="submit"]:hover {
+            background-color: #1a7a91;
+            transform: translateY(-2px);
+        }
+        .prediction-result {
+            margin-top: 30px;
+            font-size: 1.5em;
+            color: #28a745;
+            font-weight: bold;
+            background-color: #e9f7ef;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #28a745;
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .footer {
+            margin-top: 30px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9em;
+        }
+        /* Responsiveness */
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            input[type="submit"] {
+                width: 100%;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload MRI Scan for Brain Tumor Detection</h1>
+        <form method="post" enctype="multipart/form-data">
+            <div class="file-input-wrapper">
+                <input type="file" name="file" accept="image/*" id="file-upload">
+                <label for="file-upload" class="file-input-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3h-2zm-1-4l-1.41-1.41L13 11.17V4h-2v7.17L8.41 9.59 7 11l5 5 5-5z"/></svg>
+                    <span>Pilih File MRI</span>
+                </label>
+            </div>
+            <input type="submit" value="Upload dan Prediksi">
+        </form>
+        {% if prediction %}
+            <p class="prediction-result">{{ prediction }}</p>
+        {% endif %}
+    </div>
+    <div class="footer">
+        <p>&copy; 2023 Brain Tumor Detection. All rights reserved.</p>
+    </div>
+</body>
+</html>
