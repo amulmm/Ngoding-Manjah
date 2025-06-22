@@ -42,8 +42,15 @@ def upload_file():
             # Make prediction
             predictions = model.predict(img_array)
             predicted_class_index = np.argmax(predictions[0])
-            predicted_class_name = CLASS_NAMES[predicted_class_index]
             confidence = predictions[0][predicted_class_index] * 100
+
+            # Set a confidence threshold
+            CONFIDENCE_THRESHOLD = 95.0 # Adjust as needed
+
+            if confidence < CONFIDENCE_THRESHOLD:
+                predicted_class_name = "Unknown (Not a brain tumor image or low confidence)"
+            else:
+                predicted_class_name = CLASS_NAMES[predicted_class_index]
 
             # Clean up temporary file
             os.remove(filepath)
