@@ -1,4 +1,7 @@
-Flask
 tensorflow
 h5py
 pillow
+pandas
+scikit-learn
+opencv-python
+colorlog

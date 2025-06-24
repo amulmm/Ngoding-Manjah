@@ -17,7 +17,7 @@ IMG_HEIGHT = 150
 IMG_WIDTH = 150
 
 # Define class names (assuming 4 classes as per cobacoba.py)
-CLASS_NAMES = ['glioma', 'meningioma', 'no_tumor', 'pituitary']
+CLASS_NAMES = ['glioma', 'meningioma', 'notumor', 'pituitary']
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():
@@ -45,7 +45,7 @@ def upload_file():
             confidence = predictions[0][predicted_class_index] * 100
 
             # Set a confidence threshold
-            CONFIDENCE_THRESHOLD = 95.0 # Adjust as needed
+            CONFIDENCE_THRESHOLD = 80.0 # Adjust as needed
 
             if confidence < CONFIDENCE_THRESHOLD:
                 predicted_class_name = "Unknown (Not a brain tumor image or low confidence)"

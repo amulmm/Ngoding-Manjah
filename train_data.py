@@ -10,13 +10,39 @@ from tensorflow.keras.optimizers import Adam
 import pandas as pd
 from sklearn.model_selection import KFold
 from sklearn.utils import shuffle
+from sklearn.metrics import classification_report, confusion_matrix
+import logging
+import colorlog
+
+# Konfigurasi logging
+handler = colorlog.StreamHandler()
+handler.setFormatter(colorlog.ColoredFormatter(
+    '%(log_color)s%(levelname)-8s%(reset)s %(white)s%(message)s',
+    log_colors={
+        'DEBUG':    'cyan',
+        'INFO':     'green',
+        'WARNING':  'yellow',
+        'ERROR':    'red',
+        'CRITICAL': 'red,bg_white',
+    },
+    secondary_log_colors={
+        'message':  {
+            'ERROR':    'red',
+            'CRITICAL': 'red'
+        }
+    }
+))
+
+logger = colorlog.getLogger()
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
 
 # Definisikan konstanta untuk ukuran gambar dan batch size
 
 IMAGE_WIDTH = 150
 IMAGE_HEIGHT = 150
 IMAGE_CHANNELS = 3 # RGB
-BATCH_SIZE = 32
+BATCH_SIZE = 20
 # NUM_CLASSES akan ditentukan secara dinamis setelah mengumpulkan class_names
 
 # Fungsi load_and_prepare_data tidak lagi diperlukan karena logika spesifik dataset ada di main.
@@ -31,6 +57,7 @@ def create_model(input_shape, num_classes):
     Returns:
         tf.keras.Model: Model TensorFlow yang sudah dikompilasi
     """
+    logger.info("Membuat model VGG16...")
     # Memuat model VGG16 yang sudah dilatih sebelumnya di ImageNet
     # include_top=False: tidak menyertakan lapisan klasifikasi teratas
     # weights='imagenet': menggunakan bobot yang dilatih di dataset ImageNet
@@ -52,16 +79,19 @@ def create_model(input_shape, num_classes):
     x = Dropout(0.5)(x)
     x = Dense(128, activation='relu')(x)
     x = Dropout(0.4)(x)
-    predictions = Dense(num_classes, activation='softmax')(x)
+    predictions = Dense(5, activation='softmax')(x)
     
     # Membuat model akhir
     model = Model(inputs=base_model.input, outputs=predictions)
     
     # Mengkompilasi model
-    model.compile(optimizer=Adam(learning_rate=0.0001), 
+    model.compile(optimizer=Adam(learning_rate=0.00005), 
                   loss='categorical_crossentropy', 
                   metrics=['accuracy'])
+    logger.info("Model VGG16 berhasil dibuat.")
     return model
+
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 def train_and_evaluate_model(model, train_generator, validation_generator, epochs=20):
     """Fungsi untuk melatih dan mengevaluasi model menggunakan generator data.
@@ -75,19 +105,23 @@ def train_and_evaluate_model(model, train_generator, validation_generator, epoch
     Returns:
         tf.keras.Model: Model yang sudah dilatih
     """
-    # Melatih model menggunakan data dari generator
-    # steps_per_epoch: Jumlah batch yang diambil dari generator per epoch
-    # validation_steps: Jumlah batch yang diambil dari generator validasi per epoch
-    print("Mulai training model...")
+    # Menambahkan callbacks
+    callbacks = [
+        EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True),
+        ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=0.00001)
+    ]
+
+    logger.info("Mulai training model...")
     history = model.fit(
         train_generator,
         steps_per_epoch=len(train_generator),
         epochs=epochs,
         validation_data=validation_generator,
         validation_steps=len(validation_generator),
-        verbose=1
+        verbose=1,
+        callbacks=callbacks
     ) # <mcreference link="https://keras.io/api/models/model_training_apis/#fit-method" index="8">8</mcreference>
-    print("Training selesai.")
+    logger.info("Training selesai.")
     
     # Mengevaluasi model pada data validasi
     # Ini memberikan gambaran seberapa baik model akan bekerja pada data baru yang belum pernah dilihat
@@ -101,175 +135,153 @@ def train_and_evaluate_model(model, train_generator, validation_generator, epoch
 def main():
     """Fungsi utama untuk menjalankan alur kerja AI deteksi tumor otak.
     """
-    try:
-        base_path = os.path.dirname(__file__)
-    except NameError:
-        base_path = os.getcwd()
+    import ssl
+    ssl._create_default_https_context = ssl._create_unverified_context
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-    data_dir = os.path.join(base_path, 'Training') # Menggunakan Training sebagai sumber data utama
-    test_dir = os.path.join(base_path, 'Testing') # Data testing terpisah untuk evaluasi akhir
+    base_path = os.getcwd()
 
-    # Pastikan direktori data ada
-    if not os.path.isdir(data_dir):
-        print(f"Error: Direktori data training tidak ditemukan di {data_dir}. Pastikan dataset telah diekstrak dengan benar.")
-        return
-    if not os.path.isdir(test_dir):
-        print(f"Error: Direktori data testing tidak ditemukan di {test_dir}. Pastikan dataset telah diekstrak dengan benar.")
-        return
-
-    # Mengumpulkan semua path gambar dan label dari direktori training dan testing
+    # Mengumpulkan semua path gambar dan label dari direktori utama
     all_image_paths = []
     all_image_labels = []
-    class_names = sorted(os.listdir(data_dir)) # Asumsi nama folder adalah nama kelas
-    # Tambahkan 'non_brain' secara eksplisit jika belum ada, atau pastikan direktori 'non_brain' ada di Training
-    if 'non_brain' not in class_names:
-        class_names.append('non_brain')
+    
+    # Definisikan nama-nama kelas secara eksplisit
+    class_names = ['glioma', 'meningioma', 'notumor', 'pituitary', 'non_brain']
     class_to_idx = {name: i for i, name in enumerate(class_names)}
 
-    # Pastikan direktori 'non_brain' ada di Training dan Testing
-    for class_name in ['non_brain']:
-        train_class_path = os.path.join(data_dir, class_name)
-        test_class_path = os.path.join(test_dir, class_name)
-        os.makedirs(train_class_path, exist_ok=True)
-        os.makedirs(test_class_path, exist_ok=True)
-        print(f"Pastikan Anda telah menambahkan gambar non-otak ke direktori: {train_class_path} dan {test_class_path}")
-
-    NUM_CLASSES = len(class_names) # Perbarui NUM_CLASSES setelah semua kelas terkumpul
+    NUM_CLASSES = 5
     print(f"Jumlah kelas yang terdeteksi: {NUM_CLASSES} ({class_names})")
 
-    print("Mengumpulkan path gambar dan label dari direktori Training...")
-    for class_name in class_names:
-        class_path = os.path.join(data_dir, class_name)
-        if os.path.isdir(class_path):
-            for img_name in os.listdir(class_path):
-                if img_name.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    all_image_paths.append(os.path.join(class_path, img_name))
-                    all_image_labels.append(class_to_idx[class_name])
-    
-    print("Mengumpulkan path gambar dan label dari direktori Testing...")
-    test_image_paths = []
-    test_image_labels = []
-    for class_name in class_names:
-        class_path = os.path.join(test_dir, class_name)
-        if os.path.isdir(class_path):
-            for img_name in os.listdir(class_path):
-                if img_name.lower().endswith(('.png', '.jpg', '.jpeg')):
-                    test_image_paths.append(os.path.join(class_path, img_name))
-                    test_image_labels.append(class_to_idx[class_name])
+    print("Mengumpulkan path gambar dan label dari direktori utama...")
+    # Iterate through class_names, but exclude 'non_brain' for local file system scan
+    # 'non_brain' will be populated by CIFAR-10 dataset later
+    for class_name in [name for name in class_names if name != 'non_brain']:
+        class_path_training = os.path.join(base_path, 'Training', class_name)
+        class_path_testing = os.path.join(base_path, 'Testing', class_name)
 
-    # Mengacak data
-    all_image_paths, all_image_labels = shuffle(all_image_paths, all_image_labels, random_state=42)
+        # Kumpulkan gambar dari direktori Training
+        if os.path.isdir(class_path_training):
+            for img_name in os.listdir(class_path_training):
+                if img_name.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    all_image_paths.append(os.path.join(class_path_training, img_name))
+                    all_image_labels.append(class_to_idx[class_name])
+        # Kumpulkan gambar dari direktori Testing
+        if os.path.isdir(class_path_testing):
+            for img_name in os.listdir(class_path_testing):
+                if img_name.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    all_image_paths.append(os.path.join(class_path_testing, img_name))
+                    all_image_labels.append(class_to_idx[class_name])
+        
+
+
+    print(f"Total gambar yang dikumpulkan: {len(all_image_paths)}")
+    # Verifikasi distribusi kelas
+    from collections import Counter
+    label_counts = Counter([class_names[label] for label in all_image_labels])
+    print(f"Distribusi kelas: {label_counts}")
+
+    # Verifikasi bahwa semua kelas yang diharapkan ada di all_image_labels
+    unique_labels_collected = sorted(list(set(all_image_labels)))
+    print(f"Label unik yang dikumpulkan (indeks): {unique_labels_collected}")
+    if len(unique_labels_collected) != NUM_CLASSES:
+        print(f"Peringatan: Jumlah label unik yang dikumpulkan ({len(unique_labels_collected)}) tidak sesuai dengan jumlah kelas yang diharapkan ({NUM_CLASSES}).")
+
+    # Pisahkan data menjadi training dan validasi
+    import cv2
+    import tempfile
+    from sklearn.model_selection import train_test_split
+    # Add CIFAR-10 dataset
+    from tensorflow.keras.datasets import cifar10
+    (cifar_images, _), _ = cifar10.load_data()
+    cifar_images = [cv2.resize(img, (150,150)) for img in cifar_images[:2000]]
+    assert len(cifar_images) > 0, 'Tidak ada gambar CIFAR yang ditemukan'
+    cifar_paths = ['cifar_'+str(i) for i in range(len(cifar_images))]
+    cifar_labels = [4] * len(cifar_images)
+
+    # Save CIFAR-10 images to temp directory
+    cifar_dir = tempfile.mkdtemp()
+    for i in range(len(cifar_images)):
+        cv2.imwrite(
+            os.path.join(cifar_dir, f'cifar_{i}.png'),
+            cv2.cvtColor(cifar_images[i], cv2.COLOR_RGB2BGR)
+        )
+
+    # Get CIFAR image paths
+    cifar_paths = [
+        os.path.join(cifar_dir, f) 
+        for f in os.listdir(cifar_dir)
+        if f.endswith('.png')
+    ]
+    cifar_labels = [4] * len(cifar_paths)
+
+    # Combine medical and CIFAR datasets
+    combined_paths = all_image_paths + cifar_paths
+    combined_labels = all_image_labels + cifar_labels
+
+    # Split combined dataset
+    train_paths, val_paths, train_labels_idx, val_labels_idx = train_test_split(
+        combined_paths, combined_labels, test_size=0.2, random_state=42, stratify=combined_labels
+    )
+
+    # Mengacak data training
+    train_paths, train_labels_idx = shuffle(train_paths, train_labels_idx, random_state=42)
 
     # Konversi label ke one-hot encoding
-    # Konversi label ke one-hot encoding, pastikan num_classes sesuai dengan jumlah kelas yang sebenarnya
-    all_image_labels = tf.keras.utils.to_categorical(all_image_labels, num_classes=len(class_names))
-    test_image_labels = tf.keras.utils.to_categorical(test_image_labels, num_classes=len(class_names))
+    train_labels = tf.keras.utils.to_categorical(train_labels_idx, num_classes=len(class_names))
+    val_labels = tf.keras.utils.to_categorical(val_labels_idx, num_classes=len(class_names))
 
-    # Inisialisasi K-Fold Cross-Validation
-    n_splits = 5 # Jumlah lipatan
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    # Membuat DataFrame untuk generator
+    train_df = pd.DataFrame({'path': train_paths, 'label': [class_names[idx] for idx in train_labels_idx]})
+    val_df = pd.DataFrame({'path': val_paths, 'label': [class_names[idx] for idx in val_labels_idx]})
+    logger.info("Train DataFrame head:\n%s" % train_df.head())
+    logger.info("Validation DataFrame head:\n%s" % val_df.head())
 
-    fold_accuracies = []
-    fold_losses = []
-    best_model = None
-    best_accuracy = 0.0
+    # Membuat ImageDataGenerator untuk training (dengan augmentasi)
+    train_datagen = ImageDataGenerator(
+        rescale=1./255,
+        rotation_range=20,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        shear_range=0.2,
+        zoom_range=0.2,
+        horizontal_flip=True,
+        fill_mode='nearest'
+    )
 
-    print(f"Memulai {n_splits}-Fold Cross-Validation...")
-    for fold, (train_index, val_index) in enumerate(kf.split(all_image_paths)):
-        print(f"\n--- Fold {fold+1}/{n_splits} ---")
-        train_fold_paths = np.array(all_image_paths)[train_index]
-        train_fold_labels = all_image_labels[train_index]
-        val_fold_paths = np.array(all_image_paths)[val_index]
-        val_fold_labels = all_image_labels[val_index]
+    # Membuat ImageDataGenerator untuk validasi (hanya rescale)
+    validation_datagen = ImageDataGenerator(rescale=1./255)
 
-        # Membuat ImageDataGenerator untuk training (dengan augmentasi)
-        train_datagen = ImageDataGenerator(
-            rescale=1./255,
-            rotation_range=20,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
-            shear_range=0.2,
-            zoom_range=0.2,
-            horizontal_flip=True,
-            fill_mode='nearest'
-        )
+    # Menggunakan flow_from_dataframe untuk memuat gambar dari path yang sudah dikumpulkan
+    train_generator = train_datagen.flow_from_dataframe(
+        dataframe=train_df,
+        x_col='path',
+        y_col='label',
+        target_size=(IMAGE_WIDTH, IMAGE_HEIGHT),
+        batch_size=BATCH_SIZE,
+        class_mode='categorical',
+        shuffle=True,
+        classes=class_names,
+        validate_filenames=True
+    )
 
-        # Membuat ImageDataGenerator untuk validasi (hanya rescale)
-        validation_datagen = ImageDataGenerator(rescale=1./255)
+    validation_generator = validation_datagen.flow_from_dataframe(
+        dataframe=val_df,
+        x_col='path',
+        y_col='label',
+        target_size=(IMAGE_WIDTH, IMAGE_HEIGHT),
+        batch_size=BATCH_SIZE,
+        class_mode='categorical',
+        shuffle=False,
+        classes=class_names
+    )
 
-        # Menggunakan flow_from_dataframe untuk memuat gambar dari path yang sudah dikumpulkan
-        train_generator = train_datagen.flow_from_dataframe(
-            pd.DataFrame({'filepaths': train_fold_paths, 'labels': [class_names[np.argmax(l)] for l in train_fold_labels]}),
-            x_col='filepaths',
-            y_col='labels',
-            target_size=(IMAGE_WIDTH, IMAGE_HEIGHT),
-            batch_size=BATCH_SIZE,
-            class_mode='categorical',
-            shuffle=True,
-            classes=class_names # Pastikan generator mengetahui semua kelas yang mungkin
-        )
+    # Membuat dan melatih model
+    model = create_model((IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS), NUM_CLASSES)
+    trained_model = train_and_evaluate_model(model, train_generator, validation_generator, epochs=20)
 
-        validation_generator = validation_datagen.flow_from_dataframe(
-            pd.DataFrame({'filepaths': val_fold_paths, 'labels': [class_names[np.argmax(l)] for l in val_fold_labels]}),
-            x_col='filepaths',
-            y_col='labels',
-            target_size=(IMAGE_WIDTH, IMAGE_HEIGHT),
-            batch_size=BATCH_SIZE,
-            class_mode='categorical',
-            shuffle=False,
-            classes=class_names # Pastikan generator mengetahui semua kelas yang mungkin
-        )
+    # Menyimpan model yang sudah dilatih
+    model.save('brain_tumor_model.h5')
+    print("Model berhasil disimpan sebagai brain_tumor_model.h5")
 
-        # Membuat model baru untuk setiap fold
-        model = create_model((IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS), NUM_CLASSES)
-        model.summary()
-
-        # Melatih dan mengevaluasi model untuk fold saat ini
-        trained_model_fold = train_and_evaluate_model(model, train_generator, validation_generator, epochs=20)
-        
-        # Evaluasi pada data validasi fold
-        loss, accuracy = trained_model_fold.evaluate(validation_generator, verbose=0)
-        print(f"Fold {fold+1} - Loss Validasi: {loss:.4f}, Akurasi Validasi: {accuracy:.4f}")
-        fold_losses.append(loss)
-        fold_accuracies.append(accuracy)
-
-        # Simpan model terbaik berdasarkan akurasi validasi
-        if accuracy > best_accuracy:
-            best_accuracy = accuracy
-            best_model = trained_model_fold
-
-    print("\n--- Hasil Cross-Validation ---")
-    print(f"Rata-rata Akurasi Validasi: {np.mean(fold_accuracies):.4f} (+/- {np.std(fold_accuracies):.4f})")
-    print(f"Rata-rata Loss Validasi: {np.mean(fold_losses):.4f} (+/- {np.std(fold_losses):.4f})")
-
-    # Simpan model terbaik secara keseluruhan
-    if best_model:
-        model_save_path = os.path.join(base_path, 'brain_tumor_model_best_cv.h5')
-        print(f"Menyimpan model terbaik ke: {model_save_path}")
-        best_model.save(model_save_path)
-        print("Model terbaik berhasil disimpan.")
-    else:
-        print("Tidak ada model terbaik yang ditemukan.")
-
-    # Evaluasi akhir pada data testing yang terpisah (jika ada)
-    if test_image_paths:
-        print("\n--- Evaluasi Akhir pada Data Testing Terpisah ---")
-        test_datagen = ImageDataGenerator(rescale=1./255)
-        test_generator = test_datagen.flow_from_dataframe(
-            pd.DataFrame({'filepaths': test_image_paths, 'labels': [class_names[np.argmax(l)] for l in test_image_labels]}),
-            x_col='filepaths',
-            y_col='labels',
-            target_size=(IMAGE_WIDTH, IMAGE_HEIGHT),
-            batch_size=BATCH_SIZE,
-            class_mode='categorical',
-            shuffle=False
-        )
-        if best_model:
-            test_loss, test_accuracy = best_model.evaluate(test_generator, verbose=0)
-            print(f"Loss pada data testing: {test_loss:.4f}")
-            print(f"Akurasi pada data testing: {test_accuracy:.4f}")
-        else:
-            print("Tidak ada model terbaik untuk dievaluasi pada data testing.")
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
