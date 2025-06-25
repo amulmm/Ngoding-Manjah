@@ -2,6 +2,7 @@ from flask import Flask, request, render_template
 import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
+from flask import Flask, render_template, request, url_for
 import os
 
 app = Flask(__name__)
@@ -17,7 +18,7 @@ IMG_HEIGHT = 150
 IMG_WIDTH = 150
 
 # Define class names (assuming 4 classes as per cobacoba.py)
-CLASS_NAMES = ['glioma', 'meningioma', 'notumor', 'pituitary']
+CLASS_NAMES = ['glioma', 'meningioma', 'notumor', 'pituitary', 'non_brain']
 
 @app.route('/', methods=['GET', 'POST'])
 def upload_file():

@@ -5,44 +5,100 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Brain Tumor Detection</title>
     <style>
+        html {
+            height: 100%;
+
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+
+        
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh; /* Ensure body takes full viewport height */
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
+            font-family: 'Montserrat', sans-serif;
+
+
             margin: 0;
-            background: linear-gradient(135deg, #6dd5ed, #2193b0); /* Gradien biru */
-            color: #333;
-            overflow: hidden; /* Mencegah scrollbar yang tidak diinginkan */
+            background-image: url({{ url_for('static', filename='mri-brain-background.jpg') }});
+
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+
+            color: white;
+
+            line-height: 1.6;
         }
+
         .container {
-            background-color: #ffffff;
+            background-color: transparent; /* Semi-transparent white */
             padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
             text-align: center;
-            max-width: 500px;
+            max-width: 600px; /* Increased max-width */
             width: 90%;
+            max-height: 90vh; /* Limit container height to prevent scroll */
+            overflow-y: auto; /* Enable internal scrolling if content exceeds max-height */
             animation: fadeIn 1s ease-out;
+            position: relative; /* For absolute positioning of elements */
         }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        h1 {
-            color: #2193b0;
-            margin-bottom: 25px;
-            font-size: 2.2em;
-            font-weight: 600;
+
+        h1, h2, h3 {
+            font-family: 'Montserrat', sans-serif;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5); /* Black with 50% transparency */
+            padding: 10px;
+            border-radius: 5px;
+            display: inline-block; /* To make padding and background apply correctly */
         }
+
+        .upload-section {
+            margin-bottom: 30px;
+            border: 2px dashed #e0e0e0;
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 180px; /* Slightly reduced height for drop area */
+            transition: all 0.3s ease;
+        }
+
+        .upload-section.has-image {
+            border: none;
+            padding: 0;
+            min-height: unset;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 250px; /* Slightly reduced preview height */
+            border-radius: 10px;
+            display: none; /* Hidden by default */
+            margin-bottom: 20px;
+            object-fit: contain; /* Ensure image fits without cropping */
+        }
+
         .file-input-wrapper {
             position: relative;
             overflow: hidden;
             display: inline-block;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
+
         .file-input-wrapper input[type="file"] {
             font-size: 100px;
             position: absolute;
@@ -50,12 +106,16 @@
             top: 0;
             opacity: 0;
             cursor: pointer;
+            width: 100%;
+            height: 100%;
         }
-        .file-input-button {
-            border: 2px solid #2193b0;
-            color: #2193b0;
-            background-color: #fff;
+
+        .file-input-button,
+        .change-image-button {
+            background-color: #333; /* Darker button for contrast */
+            color: white;
             padding: 12px 25px;
+            border: none;
             border-radius: 8px;
             cursor: pointer;
             font-size: 1.1em;
@@ -63,18 +123,24 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
+            text-decoration: none; /* For anchor tag */
         }
-        .file-input-button:hover {
-            background-color: #2193b0;
-            color: #fff;
+
+        .file-input-button:hover,
+        .change-image-button:hover {
+            background-color: #555;
+            transform: translateY(-2px);
         }
-        .file-input-button svg {
+
+        .file-input-button svg,
+        .change-image-button svg {
             fill: currentColor;
             width: 20px;
             height: 20px;
         }
+
         input[type="submit"] {
-            background-color: #2193b0;
+            background-color: #000; /* Black submit button */
             color: white;
             padding: 12px 30px;
             border: none;
@@ -82,39 +148,47 @@
             cursor: pointer;
             font-size: 1.1em;
             transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 4px 15px rgba(33, 147, 176, 0.4);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            margin-top: 20px; /* Spacing from image/buttons */
         }
+
         input[type="submit"]:hover {
-            background-color: #1a7a91;
+            background-color: #333;
             transform: translateY(-2px);
         }
+
         .prediction-result {
-            margin-top: 30px;
-            font-size: 1.5em;
+            margin-top: 20px; /* Reduced margin-top */
+            font-size: 1.4em; /* Slightly smaller font size */
             color: #28a745;
             font-weight: bold;
             background-color: #e9f7ef;
-            padding: 15px;
+            padding: 15px 20px;
             border-radius: 10px;
             border: 1px solid #28a745;
             animation: slideIn 0.5s ease-out;
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.1);
         }
+
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
         .footer {
-            margin-top: 30px;
-            color: rgba(255, 255, 255, 0.8);
+            margin-top: 20px; /* Reduced space */
+            color: white;
             font-size: 0.9em;
+            background-color: transparent;
         }
+
         /* Responsiveness */
         @media (max-width: 600px) {
             .container {
                 padding: 25px;
             }
             h1 {
-                font-size: 1.8em;
+                font-size: 2em;
             }
             input[type="submit"] {
                 width: 100%;
@@ -122,26 +196,70 @@
             }
         }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <h1>Upload MRI Scan for Brain Tumor Detection</h1>
-        <form method="post" enctype="multipart/form-data">
-            <div class="file-input-wrapper">
-                <input type="file" name="file" accept="image/*" id="file-upload">
-                <label for="file-upload" class="file-input-button">
+        <h1>Brain Tumor Detection</h1>
+        <form method="post" enctype="multipart/form-data" id="upload-form">
+            <div class="upload-section" id="upload-section">
+                <img id="image-preview" class="image-preview" src="#" alt="Image Preview">
+                <div class="file-input-wrapper" id="file-input-wrapper">
+                    <input type="file" name="file" accept="image/*" id="file-upload">
+                    <label for="file-upload" class="file-input-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3h-2zm-1-4l-1.41-1.41L13 11.17V4h-2v7.17L8.41 9.59 7 11l5 5 5-5z"/></svg>
+                        <span>Choose MRI-Picture</span>
+                    </label>
+                </div>
+                <p id="file-name" style="margin-top: 10px; font-size: 0.9em; color: #555;"></p>
+                <button type="button" id="change-image-button" class="change-image-button" style="display: none; margin-top: 15px;">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3h-2zm-1-4l-1.41-1.41L13 11.17V4h-2v7.17L8.41 9.59 7 11l5 5 5-5z"/></svg>
-                    <span>Pilih File MRI</span>
-                </label>
+                    <span>Change Picture</span>
+                </button>
             </div>
-            <input type="submit" value="Upload dan Prediksi">
+            <input type="submit" value="Upload and Predict">
         </form>
+        <script>
+            const fileUpload = document.getElementById('file-upload');
+            const imagePreview = document.getElementById('image-preview');
+            const fileNameDisplay = document.getElementById('file-name');
+            const fileInputWrapper = document.getElementById('file-input-wrapper');
+            const changeImageButton = document.getElementById('change-image-button');
+            const uploadSection = document.getElementById('upload-section');
+
+            fileUpload.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                        fileNameDisplay.textContent = file.name;
+                        fileInputWrapper.style.display = 'none';
+                        changeImageButton.style.display = 'inline-flex';
+                        uploadSection.classList.add('has-image');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    imagePreview.src = '#';
+                    imagePreview.style.display = 'none';
+                    fileNameDisplay.textContent = '';
+                    fileInputWrapper.style.display = 'inline-block';
+                    changeImageButton.style.display = 'none';
+                    uploadSection.classList.remove('has-image');
+                }
+            });
+
+            changeImageButton.addEventListener('click', function() {
+                fileUpload.click();
+            });
+        </script>
         {% if prediction %}
             <p class="prediction-result">{{ prediction }}</p>
         {% endif %}
     </div>
     <div class="footer">
-        <p>&copy; 2023 Brain Tumor Detection. All rights reserved.</p>
+        <p style="color: rgb(255, 255, 255);">&copy; 2025 Brain Tumor Detection. All rights reserved.</p>
     </div>
 </body>
 </html>
