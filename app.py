@@ -4,11 +4,25 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 from flask import Flask, render_template, request, url_for
 import os
+from huggingface_hub import hf_hub_download
 
 app = Flask(__name__)
 
-# Path to the trained model (assuming it's saved in the same directory)
-MODEL_PATH = 'brain_tumor_model.h5'
+# Define model path and Hugging Face Hub details
+MODEL_PATH = "/tmp/brain_tumor_model_baru.h5"
+HF_REPO_ID = "amulmm/brain_tumor_training" # Ganti dengan repo_id Anda yang sebenarnya
+HF_FILENAME = "brain_tumor_model_baru.h5"
+
+# Muat model hanya sekali saat fungsi diinisialisasi (cold start)
+if not os.path.exists(MODEL_PATH):
+    print("Mengunduh model dari Hugging Face Hub...")
+    try:
+        hf_hub_download(repo_id=HF_REPO_ID, filename=HF_FILENAME, local_dir="/tmp/")
+        print("Model berhasil diunduh.")
+    except Exception as e:
+        print(f"Terjadi kesalahan saat mengunduh model: {e}")
+        # Handle error, maybe exit or raise an exception
+        exit() # Keluar jika model tidak dapat diunduh
 
 # Load the trained model
 model = load_model(MODEL_PATH)
