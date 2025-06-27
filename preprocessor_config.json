@@ -1,0 +1,11 @@
+{
+  "do_rescale": true,
+  "rescale_factor": 0.00392156862745098,
+  "do_normalize": false,
+  "image_mean": null,
+  "image_std": null,
+  "size": {
+    "height": 150,
+    "width": 150
+  }
+}

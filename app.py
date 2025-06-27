@@ -1,31 +1,26 @@
 from flask import Flask, request, render_template
 import numpy as np
-from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 from flask import Flask, render_template, request, url_for
 import os
-from huggingface_hub import hf_hub_download
+import io
+from huggingface_hub import hf_hub_download # Import hf_hub_download
+
+# Available backend options are: "jax", "torch", "tensorflow".
+os.environ["KERAS_BACKEND"] = "tensorflow"
+import keras
 
 app = Flask(__name__)
 
-# Define model path and Hugging Face Hub details
-MODEL_PATH = "/tmp/brain_tumor_model_baru.h5"
-HF_REPO_ID = "amulmm/brain_tumor_training" # Ganti dengan repo_id Anda yang sebenarnya
-HF_FILENAME = "brain_tumor_model_baru.h5"
+# Define the Hugging Face model repository ID and the specific file to download
+# HF_MODEL_REPO_ID = "amulmm/brain_tumor_training"
+# HF_MODEL_FILE = "saved_model.keras"
 
-# Muat model hanya sekali saat fungsi diinisialisasi (cold start)
-if not os.path.exists(MODEL_PATH):
-    print("Mengunduh model dari Hugging Face Hub...")
-    try:
-        hf_hub_download(repo_id=HF_REPO_ID, filename=HF_FILENAME, local_dir="/tmp/")
-        print("Model berhasil diunduh.")
-    except Exception as e:
-        print(f"Terjadi kesalahan saat mengunduh model: {e}")
-        # Handle error, maybe exit or raise an exception
-        exit() # Keluar jika model tidak dapat diunduh
+# Download the model file
+# model_path = hf_hub_download(repo_id=HF_MODEL_REPO_ID, filename=HF_MODEL_FILE)
 
-# Load the trained model
-model = load_model(MODEL_PATH)
+# Load the model directly from the downloaded .keras file
+model = keras.models.load_model("saved_model.keras")
 
 # Define image dimensions
 IMG_HEIGHT = 150
@@ -54,8 +49,10 @@ def upload_file():
             img_array = np.expand_dims(img_array, axis=0) # Create a batch
             img_array /= 255.0 # Normalize pixel values
 
-            # Make prediction
+            # Make prediction using the loaded model
             predictions = model.predict(img_array)
+            
+            # Proses hasil prediksi
             predicted_class_index = np.argmax(predictions[0])
             confidence = predictions[0][predicted_class_index] * 100
 

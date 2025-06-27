@@ -24,7 +24,7 @@
 
 
             margin: 0;
-            background-image: url({{ url_for('static', filename='mri-brain-background.jpg') }});
+            background-image: url({{url_for('static', filename='mri-brain-background.jpg') }});
 
             background-size: cover;
             background-position: center;
@@ -201,7 +201,7 @@
 <body>
     <div class="container">
         <h1>Brain Tumor Detection</h1>
-        <form method="post" enctype="multipart/form-data" id="upload-form">
+        <form action="/" method="post" enctype="multipart/form-data" id="upload-form">
             <div class="upload-section" id="upload-section">
                 <img id="image-preview" class="image-preview" src="#" alt="Image Preview">
                 <div class="file-input-wrapper" id="file-input-wrapper">
