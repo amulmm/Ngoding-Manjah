@@ -1,5 +1,6 @@
 Flask
-tensorflow==2.19.0 # Atau versi lain yang kompatibel dengan Python di Render.com
+tensorflow==2.16.0
+tf_keras==2.16.0
 huggingface_hub
 Pillow
 numpy
