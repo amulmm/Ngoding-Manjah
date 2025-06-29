@@ -1,6 +1,5 @@
 Flask
-tensorflow==2.19.0
-tf_keras==2.19.0
+tensorflow
 huggingface_hub
 Pillow
 numpy
