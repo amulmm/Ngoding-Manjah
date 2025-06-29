@@ -104,7 +104,7 @@ jupyterlab @ file:///private/var/folders/nz/j6p8yfhx1mv_0grj5xl4650h0000gp/T/abs
 jupyterlab-pygments @ file:///tmp/build/80754af9/jupyterlab_pygments_1601490720602/work
 jupyterlab-widgets @ file:///tmp/build/80754af9/jupyterlab_widgets_1609884341231/work
 jupyterlab_server @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_f64fg3hglz/croot/jupyterlab_server_1725865356410/work
-kagglehub==0.3.12
+kagglehub==0.3.1
 keras==3.8.0
 keyring @ file:///private/var/folders/k1/30mswbxs7r1g6zwn8y4fyt500000gp/T/abs_8fybah8hcr/croot/keyring_1709632516643/work
 kiwisolver @ file:///Users/builder/cbouss/perseverance-python-buildout/croot/kiwisolver_1699239145780/work
